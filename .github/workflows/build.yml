@@ -115,7 +115,6 @@ jobs:
         run: |
           # 保留已下载的 .deb 供缓存复用（runner 镜像默认 docker-clean 会清掉）
           sudo rm -f /etc/apt/apt.conf.d/docker-clean
-          sudo chown -R "$USER" /var/cache/apt/archives
           sudo apt-get update
           sudo apt-get install -y \
               binutils-arm-linux-gnueabi \
@@ -123,6 +122,8 @@ jobs:
               ccache \
               zip \
               python3
+          # apt 装完会把 archives/partial 归给 root，归还给当前用户供 cache tar 打包
+          sudo chown -R "$USER" /var/cache/apt/archives
 
       - name: "apt: Save"
         if: always()
@@ -215,14 +216,7 @@ jobs:
 
       - name: export flags
         run: |
-          echo 'flags=" \
-          O=out \
-          ARCH=arm64 \
-          LLVM=1 \
-          LLVM_IAS=1 \
-          CROSS_COMPILE=aarch64-linux-gnu- \
-          CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
-          "' | tee -a "$GITHUB_ENV"
+          echo "flags=O=out ARCH=arm64 LLVM=1 LLVM_IAS=1 CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi-" | tee -a "$GITHUB_ENV"
 
       - name: Make defconfig
         run: make $flags merged_defconfig
