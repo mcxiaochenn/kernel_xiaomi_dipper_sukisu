@@ -252,6 +252,18 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Determine artifact names
+        run: |
+          KERNEL_RELEASE=$(cat out/include/config/kernel.release)
+          KSU_DESC=$(git -C KernelSU describe --tags --always | tr '/' '-')
+          BUILD_TS=$(date -u +%Y%m%d-%H%M)
+          PREFIX="boot_dipper-${KERNEL_RELEASE}-sukisu-${KSU_DESC}-${BUILD_TS}Z"
+          {
+            echo "KERNEL_RELEASE=$KERNEL_RELEASE"
+            echo "KSU_DESC=$KSU_DESC"
+            echo "ARTIFACT_PREFIX=$PREFIX"
+          } | tee -a "$GITHUB_ENV"
+
       - name: AnyKernel3
         run: |
           curl -Lo AnyKernel3.zip "https://github.com/osm0sis/AnyKernel3/archive/${anykernel3_commit}.zip"
@@ -268,21 +280,22 @@ jobs:
           device.name1=dipper
           '; }
 
-          block=auto
-          is_slot_device=auto
-          ramdisk_compression=auto
-          patch_vbmeta_flag=auto
+          BLOCK=boot;
+          IS_SLOT_DEVICE=0;
+          RAMDISK_COMPRESSION=auto;
+          PATCH_VBMETA_FLAG=auto;
 
-          . tools/ak3-core.sh
-          split_boot
-          flash_boot
+          . tools/ak3-core.sh;
+          split_boot;
+          flash_boot;
           EOF
 
           cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3/
           if [ -f out/arch/arm64/boot/dtbo.img ]; then
               cp out/arch/arm64/boot/dtbo.img AnyKernel3/
           fi
-          (cd AnyKernel3 && rm -rf .git* README.md && zip -qr ../boot.zip .)
+          (cd AnyKernel3 && rm -rf .git* README.md && zip -qr "../${ARTIFACT_PREFIX}.zip" .)
+          echo "Packed: ${ARTIFACT_PREFIX}.zip"
 
       - name: Repack boot.img
         run: |
@@ -290,11 +303,12 @@ jobs:
             --kernel out/arch/arm64/boot/Image.gz-dtb \
             --ramdisk this-repo/ramdisk/ramdisk.cpio.gz \
             --header this-repo/ramdisk/boot_header.json \
-            --output boot.img
+            --output "${ARTIFACT_PREFIX}.img"
+          ls -l "${ARTIFACT_PREFIX}.img"
 
       - name: SHA256SUMS
         run: |
-          sha256sum boot.zip boot.img | tee SHA256SUMS
+          sha256sum "${ARTIFACT_PREFIX}.zip" "${ARTIFACT_PREFIX}.img" | tee SHA256SUMS
 
       - name: "ccache: Save"
         if: always()
@@ -306,10 +320,10 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: boot
+          name: ${{ env.ARTIFACT_PREFIX }}
           path: |
-            boot.zip
-            boot.img
+            ${{ env.ARTIFACT_PREFIX }}.zip
+            ${{ env.ARTIFACT_PREFIX }}.img
             SHA256SUMS
 
       - name: Check release tag not exists
@@ -329,19 +343,19 @@ jobs:
           tag_name: ${{ env.RELEASE_TAG }}
           name: ${{ env.RELEASE_TAG }}
           body: |
-            设备: ${{ env.device }} (Xiaomi Mi 8)
-            ROM: PixelExperience 14.0 (20240317-0958) 内核 4.9.337
-
-            内核源: https://github.com/${{ env.kernel_repository }}/tree/${{ env.kernel_commit }}
-            SukiSU: https://github.com/SukiSU-Ultra/SukiSU-Ultra/commit/${{ env.KSU_REF }}
+            设备: ${{ env.device }} (Xiaomi Mi 8 / dipper)
+            ROM: PixelExperience 14.0 (20240317-0958) 内核 ${{ env.KERNEL_RELEASE }}
+            SukiSU: ${{ env.KSU_DESC }} (https://github.com/SukiSU-Ultra/SukiSU-Ultra/commit/${{ env.KSU_REF }})
             Clang: ${{ env.clang_version }}
             编译耗时: ${{ env.build_seconds }}s
 
+            文件命名: boot_dipper-<内核版本>-sukisu-<SukiSU版本>-<UTC时间戳>
+
             产物:
-            - `boot.zip` — AnyKernel3 卡刷包（recovery 刷入）
-            - `boot.img` — 裸镜像（fastboot flash boot boot.img）
+            - `${{ env.ARTIFACT_PREFIX }}.zip` — AnyKernel3 卡刷包（recovery 刷入）
+            - `${{ env.ARTIFACT_PREFIX }}.img` — 裸镜像（fastboot flash boot）
             - `SHA256SUMS` — 校验和
           files: |
-            boot.zip
-            boot.img
+            ${{ env.ARTIFACT_PREFIX }}.zip
+            ${{ env.ARTIFACT_PREFIX }}.img
             SHA256SUMS

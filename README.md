@@ -8,10 +8,12 @@
 
 ## 产物与刷入
 
+文件命名：`boot_dipper-<内核版本>-sukisu-<SukiSU版本>-<UTC时间戳>`，如 `boot_dipper-4.9.337-sukisu-v3.0.0-4bec532d-20261127-0400Z.zip`
+
 | 产物 | 用法 |
 |---|---|
-| `boot.zip` | AnyKernel3 卡刷包，Recovery 下刷入（推荐，自动处理 vbmeta） |
-| `boot.img` | 裸镜像，`fastboot flash boot boot.img`（救砖用；如 vbmeta 报警，另刷 `vbmeta.img` 或加 `--disable-verification`） |
+| `*.zip` | AnyKernel3 卡刷包，Recovery 下刷入（推荐，自动处理 vbmeta） |
+| `*.img` | 裸镜像，`fastboot flash boot`（救砖用；如 vbmeta 报警，另刷 `vbmeta.img` 或加 `--disable-verification`） |
 | `SHA256SUMS` | 校验和 |
 
 刷入前提：Bootloader 已解锁 + 刷有本 ROM 包（内核与 ROM 的 ramdisk/vendor 配套，勿跨 ROM 混刷）。
@@ -72,6 +74,11 @@ Actions → **Build and Release** → Run workflow：
 - boot.img 未做 AVB 签名（原包 vbmeta flags=0x0，解锁 BL 直刷无碍；AnyKernel3 的 `patch_vbmeta_flag=auto` 会顺手处理）
 - 本内核 ThinLTO 开启，SukiSU 手动 hooks 在 LTO 下的裁剪风险按官方文档对策处理；若实机 hook 失效见 `patches/` 里补丁的回退路线
 - 内核源仓库已归档，上游不会再更新——这正是本仓库存在的意义
+
+## 修订记录
+
+- **v1.0.1**：修复 AnyKernel3 刷入报错 `Unable to determine partition`——新版 ak3-core.sh 只认大写变量 `BLOCK`/`IS_SLOT_DEVICE`，v1.0.0 按老配方写的 `block=auto` 被忽略导致 `$BLOCK` 为空；产物命名加上内核版本、SukiSU 版本、UTC 时间戳
+- **v1.0.0**：首个构建，boot.img 实机验收通过（SukiSU Manager Working）
 
 ## 证据与调研
 
