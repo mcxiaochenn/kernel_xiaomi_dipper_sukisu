@@ -1,0 +1,6 @@
+# SukiSU 集成配置（v1：仅基础 root）
+# 注意：builtin 分支的 KSU_SUSFS 默认 y 且本内核 CONFIG_THREAD_INFO_IN_TASK=y，
+# 必须显式关掉，否则会去编译未集成的 susfs 内核补丁代码，直接编译失败。
+CONFIG_KSU=y
+# CONFIG_KSU_SUSFS is not set
+# CONFIG_KPM is not set

@@ -1,0 +1,7 @@
+out/
+AnyKernel3*/
+aosp-clang/
+*.img
+!ramdisk/*.gz
+boot.zip
+SHA256SUMS
