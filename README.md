@@ -49,7 +49,14 @@ scripts/
 | ccache | `ccache-<os>-<clang>…`（带 restore-keys 前缀回退） | 增量编译，调试补丁时大幅提速 |
 | apt archives | `apt-v1-<os>` | 跳过依赖下载 |
 
-冷构建与热构建耗时、ccache 命中率见每次 run 的 job summary。
+冷构建与热构建耗时、ccache 命中率见每次 run 的 job summary。实测（v1.0.0 首发两轮，GitHub Actions 4 核）：
+
+| | 编译耗时（make） | job 总时长 | 备注 |
+|---|---|---|---|
+| 冷构建 | 620s | 11m53s | ccache 部分积累（319MB） |
+| 热构建 | **424s** | **8m37s** | 全量 ccache（~1.2GB） |
+
+补丁调试时每轮只重编 SukiSU 相关对象，热构建预计可压到分钟级。
 
 ## 手动构建
 
