@@ -51,6 +51,35 @@ index fe65337a..d148ab4f 100644
  #include <linux/slab.h>
  #include <linux/sort.h>
  #include <linux/string.h>
+diff --git a/kernel/kernel_compat.h b/kernel/kernel_compat.h
+index 8493a7ac..44b52f79 100644
+--- a/kernel/kernel_compat.h
++++ b/kernel/kernel_compat.h
+@@ -169,6 +169,15 @@ static inline void *ksu_kvmalloc_array(size_t n, size_t size, gfp_t flags)
+ #define kvmalloc ksu_kvmalloc
+ #define kvmalloc_array ksu_kvmalloc_array
+ #define kvfree ksu_kvfree
++
++static inline void *ksu_kvcalloc(size_t n, size_t size, gfp_t flags)
++{
++    void *p = ksu_kvmalloc_array(n, size, flags);
++    if (p)
++        memset(p, 0, n * size);
++    return p;
++}
++#define kvcalloc ksu_kvcalloc
+ #endif
+ 
+ // for supercalls.c fd install tw
+@@ -277,7 +286,7 @@ __weak void groups_sort(struct group_info *group_info)
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+ #define KSU_CAN_USE_CPU_SPOOF
+ #endif
+-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0) && defined(CONFIG_KPM)
+ #define KSU_CAN_USE_KPM
+ #endif
+ 
 diff --git a/kernel/kernel_includes.h b/kernel/kernel_includes.h
 index 422fde3d..aa8f8eed 100644
 --- a/kernel/kernel_includes.h
@@ -68,3 +97,38 @@ index 422fde3d..aa8f8eed 100644
  #include "arch.h"
  #ifdef CONFIG_KSU_SUSFS
  #include <linux/susfs.h>
+diff --git a/kernel/preinit/common/preinit.h b/kernel/preinit/common/preinit.h
+index 980cf0a8..41cb6552 100644
+--- a/kernel/preinit/common/preinit.h
++++ b/kernel/preinit/common/preinit.h
+@@ -2,8 +2,10 @@
+ #define __KSU_H_PREINIT
+ 
+ #if !defined(CONFIG_ARM64) || !defined(KSU_CAN_USE_JUMP_LABEL)
++#ifndef KSU_NO_PREINIT
+ #define KSU_NO_PREINIT
+ #endif
++#endif
+ 
+ #ifndef KSU_NO_PREINIT
+ 
+diff --git a/kernel/selinux/rules.c b/kernel/selinux/rules.c
+index 6f73a740..244a0237 100644
+--- a/kernel/selinux/rules.c
++++ b/kernel/selinux/rules.c
+@@ -151,7 +151,6 @@ static int apply_kernelsu_rules_fn(void *ptr)
+ 
+ void apply_kernelsu_rules(void)
+ {
+-    struct selinux_policy *pol, *old_pol;
+     struct policydb *db;
+ 
+     if (!getenforce()) {
+@@ -159,6 +158,7 @@ void apply_kernelsu_rules(void)
+     }
+ 
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
++    struct selinux_policy *pol, *old_pol;
+     mutex_lock(&selinux_state.policy_mutex);
+ 
+     old_pol = rcu_dereference_protected(selinux_state.policy, lockdep_is_held(&selinux_state.policy_mutex));
