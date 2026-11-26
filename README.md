@@ -16,6 +16,8 @@
 
 刷入前提：Bootloader 已解锁 + 刷有本 ROM 包（内核与 ROM 的 ramdisk/vendor 配套，勿跨 ROM 混刷）。
 
+> 刷机包来源：[PixelExperience for dipper](https://get.pixelexperience.org/dipper)（本仓库针对 `PixelExperience_dipper-14.0-20240317-0958-OFFICIAL.zip` 构建）
+
 ## 仓库结构
 
 ```
