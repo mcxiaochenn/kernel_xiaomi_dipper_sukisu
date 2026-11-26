@@ -157,9 +157,16 @@ jobs:
 
       - name: Apply kernel patches
         run: |
-          for p in this-repo/patches/*.patch; do
-            echo "Applying patch: $p"
+          for p in this-repo/patches/000*.patch; do
+            echo "Applying kernel patch: $p"
             git apply -p1 "$p"
+          done
+
+      - name: Apply SukiSU patches
+        run: |
+          for p in this-repo/patches/ksu-*.patch; do
+            echo "Applying SukiSU patch: $p"
+            git -C KernelSU apply -p1 "$GITHUB_WORKSPACE/$p"
           done
 
       - name: "AOSP-Clang: Restore"
@@ -202,11 +209,12 @@ jobs:
 
       - name: Setup ccache + PATH
         run: |
-          mkdir -p ~/ccache-shim
+          mkdir -p ~/ccache-shim "$HOME/.ccache"
           ln -sf "$(command -v ccache)" ~/ccache-shim/clang
           ln -sf "$(command -v ccache)" ~/ccache-shim/clang++
-          echo "$HOME/ccache-shim" >> "$GITHUB_PATH"
+          # GITHUB_PATH 逐行 prepend，后写的行最终排在 PATH 最前
           echo "$GITHUB_WORKSPACE/aosp-clang/bin" >> "$GITHUB_PATH"
+          echo "$HOME/ccache-shim" >> "$GITHUB_PATH"
           {
             echo "CCACHE_DIR=$HOME/.ccache"
             echo "CCACHE_MAXSIZE=3G"
@@ -219,12 +227,12 @@ jobs:
           echo "flags=O=out ARCH=arm64 LLVM=1 LLVM_IAS=1 CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi-" | tee -a "$GITHUB_ENV"
 
       - name: Make defconfig
-        run: make $flags merged_defconfig
+        run: make $flags CC="ccache clang" merged_defconfig
 
       - name: Make
         run: |
           start_ts=$(date +%s)
-          make $flags -j"$(nproc --all)"
+          make $flags CC="ccache clang" -j"$(nproc --all)"
           end_ts=$(date +%s)
           echo "build_seconds=$((end_ts - start_ts))" | tee -a "$GITHUB_ENV"
 

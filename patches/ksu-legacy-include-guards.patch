@@ -1,0 +1,70 @@
+diff --git a/kernel/extension/kpm/compact.c b/kernel/extension/kpm/compact.c
+index f80a7b7c..3c6ea7f5 100644
+--- a/kernel/extension/kpm/compact.c
++++ b/kernel/extension/kpm/compact.c
+@@ -20,7 +20,11 @@
+ #include <asm/cacheflush.h>
+ #include <linux/module.h>
+ #include <linux/vmalloc.h>
+-#include <linux/set_memory.h>
++#if defined(__has_include)
++# if __has_include(<linux/set_memory.h>)
++#  include <linux/set_memory.h>
++# endif
++#endif
+ #include <linux/version.h>
+ #include <linux/export.h>
+ #include <linux/slab.h>
+diff --git a/kernel/extension/kpm/super_access.c b/kernel/extension/kpm/super_access.c
+index 9e3f8c07..acff441e 100644
+--- a/kernel/extension/kpm/super_access.c
++++ b/kernel/extension/kpm/super_access.c
+@@ -20,7 +20,11 @@
+ #include <asm/cacheflush.h>
+ #include <linux/module.h>
+ #include <linux/vmalloc.h>
+-#include <linux/set_memory.h>
++#if defined(__has_include)
++# if __has_include(<linux/set_memory.h>)
++#  include <linux/set_memory.h>
++# endif
++#endif
+ #include <linux/version.h>
+ #include <linux/export.h>
+ #include <linux/slab.h>
+diff --git a/kernel/infra/symbol_resolver.c b/kernel/infra/symbol_resolver.c
+index fe65337a..d148ab4f 100644
+--- a/kernel/infra/symbol_resolver.c
++++ b/kernel/infra/symbol_resolver.c
+@@ -2,7 +2,13 @@
+ #include <linux/kallsyms.h>
+ #include <linux/module.h>
+ #include <linux/mm.h>
+-#include <linux/sched/signal.h>
++#if defined(__has_include)
++# if __has_include(<linux/sched/signal.h>)
++#  include <linux/sched/signal.h>
++# endif
++#else
++# include <linux/sched/signal.h>
++#endif
+ #include <linux/slab.h>
+ #include <linux/sort.h>
+ #include <linux/string.h>
+diff --git a/kernel/kernel_includes.h b/kernel/kernel_includes.h
+index 422fde3d..aa8f8eed 100644
+--- a/kernel/kernel_includes.h
++++ b/kernel/kernel_includes.h
+@@ -73,7 +73,11 @@
+ #include <linux/vmalloc.h>
+ #include <linux/tty.h>
+ #include <linux/kref.h>
+-#include <linux/static_call.h>
++#if defined(__has_include)
++# if __has_include(<linux/static_call.h>)
++#  include <linux/static_call.h>
++# endif
++#endif
+ #include "arch.h"
+ #ifdef CONFIG_KSU_SUSFS
+ #include <linux/susfs.h>
