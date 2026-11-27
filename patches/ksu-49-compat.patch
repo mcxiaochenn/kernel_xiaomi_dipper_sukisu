@@ -88,6 +88,21 @@ index f458e563..ecfbf01c 100644
      return 0;
  }
  
+diff --git a/kernel/feature/sucompat.h b/kernel/feature/sucompat.h
+index 4bc74371..d82fffb9 100644
+--- a/kernel/feature/sucompat.h
++++ b/kernel/feature/sucompat.h
+@@ -6,8 +6,8 @@
+ extern bool ksu_su_compat_enabled;
+ 
+ #ifdef CONFIG_KSU_SUSFS
+-int ksu_handle_faccessat(int *dfd, struct filename **filename, int *mode, int *__unused_flags);
+-int ksu_handle_stat(int *dfd, struct filename **filename, int *flags);
++int ksu_handle_faccessat(int *dfd, const char __user **filename_user, int *mode, int *__unused_flags);
++int ksu_handle_stat(int *dfd, const char __user **filename_user, int *flags);
+ int ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr,
+                  void *argv_user, void *envp_user,
+                  int *flags);
 diff --git a/kernel/infra/symbol_resolver.c b/kernel/infra/symbol_resolver.c
 index fe65337a..d148ab4f 100644
 --- a/kernel/infra/symbol_resolver.c
