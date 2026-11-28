@@ -1,4 +1,4 @@
-name: Build and Release (SUSFS)
+name: Build and Release (SUSFS / miui-20.9.4)
 
 on:
   workflow_dispatch:
@@ -7,24 +7,23 @@ on:
         description: "SukiSU ref（commit SHA / 分支 / tag），留空用 builtin 分支"
         required: false
         default: ""
-      clang_version:
-        description: "AOSP Clang 版本"
-        required: false
-        default: "r487747c"
       release_tag:
-        description: "发布 tag（如 susfs-v1.0.0），留空只出 artifact 不发布"
+        description: "发布 tag（如 miui-20.9.4-susfs-v1.0.0），留空只出 artifact 不发布"
         required: false
         default: ""
 
 env:
-  kernel_repository: PixelExperience-Devices/kernel_xiaomi_sdm845
-  kernel_commit: d19207cbc0f2cbfe4be5e72d3d361f009205f37d
+  kernel_repository: MiCode/Xiaomi_Kernel_OpenSource
+  kernel_commit: dcfb1676925aec83b06ae04fd8ca989ced75067c
+  kernel_defconfig: dipper_user_defconfig
   device: dipper
   anykernel3_commit: 41f04bdb4ee30a44e429c2c1131d5e8bb32b15f1
+  # AOSP GCC 4.9 prebuilt（LineageOS 镜像；与 MIUI 原厂构建同款工具链时代）
+  gcc_branch: lineage-18.1
 
 jobs:
   build:
-    name: Build kernel (SUSFS)
+    name: Build kernel (SUSFS / miui-20.9.4)
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -49,9 +48,6 @@ jobs:
             echo "ksu_short=${full_sha:0:8}"
           } >> "$GITHUB_ENV"
 
-      - name: Set clang version
-        run: echo "clang_version=${{ inputs.clang_version || 'r487747c' }}" | tee -a "$GITHUB_ENV"
-
       - name: "apt: Restore"
         uses: actions/cache/restore@v4
         with:
@@ -65,12 +61,7 @@ jobs:
           # 保留已下载的 .deb 供缓存复用（runner 镜像默认 docker-clean 会清掉）
           sudo rm -f /etc/apt/apt.conf.d/docker-clean
           sudo apt-get update
-          sudo apt-get install -y \
-              binutils-arm-linux-gnueabi \
-              binutils-aarch64-linux-gnu \
-              ccache \
-              zip \
-              python3
+          sudo apt-get install -y ccache zip python3
           # apt 装完会把 archives/partial 归给 root，归还给当前用户供 cache tar 打包
           sudo chown -R "$USER" /var/cache/apt/archives
 
@@ -86,7 +77,6 @@ jobs:
         with:
           repository: ${{ env.kernel_repository }}
           ref: ${{ env.kernel_commit }}
-          submodules: recursive
 
       - name: Checkout this repo
         uses: actions/checkout@v4
@@ -95,7 +85,7 @@ jobs:
 
       - name: Merge defconfig
         run: |
-          cat arch/arm64/configs/dipper_defconfig \
+          cat arch/arm64/configs/${{ env.kernel_defconfig }} \
               this-repo/config/ksu-susfs.fragment \
               > arch/arm64/configs/merged_defconfig
           echo "--- merged_defconfig 尾部 ---"
@@ -118,70 +108,61 @@ jobs:
             git -C KernelSU apply -p1 "$GITHUB_WORKSPACE/$p"
           done
 
-      - name: "AOSP-Clang: Restore"
-        id: aosp_clang_restore
+      - name: "AOSP-GCC-4.9: Restore"
+        id: aosp_gcc_restore
         uses: actions/cache/restore@v4
         with:
-          path: aosp-clang
-          key: aosp-clang-${{ env.clang_version }}
+          path: aosp-gcc
+          key: aosp-gcc-4.9-${{ env.gcc_branch }}
 
-      - name: "AOSP-Clang: Download"
-        if: steps.aosp_clang_restore.outputs.cache-hit != 'true'
+      - name: "AOSP-GCC-4.9: Download"
+        if: steps.aosp_gcc_restore.outputs.cache-hit != 'true'
         run: |
-          aosp_clang_branch=$(
-              case "$clang_version" in
-              r365631c ) echo android11-release;;
-              r383902 | r416183b) echo master-kernel-build-2021 ;;
-              r450784e) echo master-kernel-build-2022 ;;
-              r487747c) echo main-kernel-build-2023 ;;
-              *) echo main ;;
-              esac
-          )
-          mkdir -p aosp-clang
-          curl -L "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/$aosp_clang_branch/clang-$clang_version.tar.gz" | tar xz -C aosp-clang
+          set -euo pipefail
+          mkdir -p aosp-gcc
+          curl -L "https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9/archive/refs/heads/${gcc_branch}.tar.gz" \
+            | tar xz -C aosp-gcc --strip-components=1
+          aosp-gcc/bin/aarch64-linux-android-gcc --version | head -n1
 
-      - name: "AOSP-Clang: Save"
-        if: steps.aosp_clang_restore.outputs.cache-hit != 'true'
+      - name: "AOSP-GCC-4.9: Save"
+        if: steps.aosp_gcc_restore.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
-          path: aosp-clang
-          key: aosp-clang-${{ env.clang_version }}
+          path: aosp-gcc
+          key: aosp-gcc-4.9-${{ env.gcc_branch }}
 
       - name: "ccache: Restore"
         uses: actions/cache/restore@v4
         with:
           path: ~/.ccache
-          key: ccache-${{ runner.os }}-${{ env.clang_version }}-${{ github.run_id }}
+          key: ccache-${{ runner.os }}-gcc49-${{ github.run_id }}
           restore-keys: |
-            ccache-${{ runner.os }}-${{ env.clang_version }}-
+            ccache-${{ runner.os }}-gcc49-
             ccache-${{ runner.os }}-
 
       - name: Setup ccache + PATH
         run: |
-          mkdir -p ~/ccache-shim "$HOME/.ccache"
-          ln -sf "$(command -v ccache)" ~/ccache-shim/clang
-          ln -sf "$(command -v ccache)" ~/ccache-shim/clang++
+          mkdir -p "$HOME/.ccache"
           # GITHUB_PATH 逐行 prepend，后写的行最终排在 PATH 最前
-          echo "$GITHUB_WORKSPACE/aosp-clang/bin" >> "$GITHUB_PATH"
-          echo "$HOME/ccache-shim" >> "$GITHUB_PATH"
+          echo "$GITHUB_WORKSPACE/aosp-gcc/bin" >> "$GITHUB_PATH"
           {
             echo "CCACHE_DIR=$HOME/.ccache"
             echo "CCACHE_MAXSIZE=3G"
             echo "CCACHE_COMPRESS=1"
-            echo "CCACHE_PATH=$GITHUB_WORKSPACE/aosp-clang/bin"
+            echo "CCACHE_PATH=$GITHUB_WORKSPACE/aosp-gcc/bin"
           } | tee -a "$GITHUB_ENV"
 
       - name: export flags
         run: |
-          echo "flags=O=out ARCH=arm64 LLVM=1 LLVM_IAS=1 CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi-" | tee -a "$GITHUB_ENV"
+          echo "flags=O=out ARCH=arm64 CROSS_COMPILE=aarch64-linux-android-" | tee -a "$GITHUB_ENV"
 
       - name: Make defconfig
-        run: make $flags CC="ccache clang" merged_defconfig
+        run: make $flags CC="ccache aarch64-linux-android-gcc" merged_defconfig
 
       - name: Make
         run: |
           start_ts=$(date +%s)
-          make $flags CC="ccache clang" -j"$(nproc --all)"
+          make $flags CC="ccache aarch64-linux-android-gcc" -j"$(nproc --all)"
           end_ts=$(date +%s)
           echo "build_seconds=$((end_ts - start_ts))" | tee -a "$GITHUB_ENV"
 
@@ -189,11 +170,12 @@ jobs:
         if: always()
         run: |
           {
-            echo "## 构建信息（SUSFS 线）"
-            echo "- 内核: \`${{ env.kernel_repository }}@${{ env.kernel_commit }}\`"
+            echo "## 构建信息（SUSFS 线 / miui-20.9.4）"
+            echo "- ROM: MIUI 20.9.4 dev（Simplicity-Auto，内核 4.9.186-perf）"
+            echo "- 内核: \`${{ env.kernel_repository }}@${{ env.kernel_commit }}\` (\`dipper-q-oss\`)"
             echo "- SukiSU: \`SukiSU-Ultra/SukiSU-Ultra@${ksu_short}\`"
-            echo "- SUSFS: v2.4.0 (\`patches/susfs-49-v2.4.0.patch\`)"
-            echo "- Clang: \`${{ env.clang_version }}\`"
+            echo "- SUSFS: v2.4.0（内核树侧 patches/susfs-49-v2.4.0.patch，KSU 侧 builtin 自带）"
+            echo "- 工具链: AOSP GCC 4.9（\`${gcc_branch}\`）"
             echo "- 编译耗时: ${build_seconds:-?}s"
             echo ""
             echo '### ccache 统计'
@@ -222,7 +204,7 @@ jobs:
 
           cat > AnyKernel3/anykernel.sh <<'EOF'
           properties() { '
-          kernel.string=PixelExperience dipper 14 (4.9.337) + SukiSU + SUSFS
+          kernel.string=MIUI 20.9.4 dipper (4.9.186) + SukiSU + SUSFS
           do.devicecheck=1
           do.modules=0
           do.cleanup=1
@@ -265,7 +247,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: ~/.ccache
-          key: ccache-${{ runner.os }}-${{ env.clang_version }}-${{ github.run_id }}
+          key: ccache-${{ runner.os }}-gcc49-${{ github.run_id }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -293,11 +275,13 @@ jobs:
           tag_name: ${{ inputs.release_tag }}
           name: ${{ inputs.release_tag }}
           body: |
+            分支: miui-20.9.4
             设备: ${{ env.device }} (Xiaomi Mi 8 / dipper)
-            ROM: PixelExperience 14.0 (20240317-0958) 内核 ${{ env.KERNEL_RELEASE }}
+            ROM: MIUI 20.9.4 dev（Simplicity-Auto 20200904，线刷底包 V12.5.2.0.QEACNXM）内核 ${{ env.KERNEL_RELEASE }}
+            内核源: MiCode/Xiaomi_Kernel_OpenSource@dcfb1676 (dipper-q-oss)
             SukiSU: ${{ env.KSU_DESC }} (https://github.com/SukiSU-Ultra/SukiSU-Ultra/commit/${{ env.ksu_ref }})
             SUSFS: v2.4.0（内核树侧 patches/susfs-49-v2.4.0.patch，KSU 侧 builtin 自带）
-            Clang: ${{ env.clang_version }}
+            工具链: AOSP GCC 4.9
             编译耗时: ${{ env.build_seconds }}s
 
             文件命名: boot_dipper-<内核版本>-sukisu-susfs-<SukiSU版本>-<UTC时间戳>

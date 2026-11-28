@@ -1,12 +1,12 @@
 {
-  "_comment": "boot.img 头参数，从 PixelExperience_dipper-14.0-20240317-0958-OFFICIAL.zip 内 boot.img 精确提取（header v1）",
+  "_comment": "boot.img 头参数，从 MI_8_DEV-20200904-20.9.4-10.0-933b0367-Simplicity-Auto.zip 内 boot.img 精确提取（header v1）",
   "header_version": 1,
-  "os_version": 469762434,
+  "os_version": 335544649,
   "kernel_addr": 32768,
   "ramdisk_addr": 16777216,
-  "second_addr": 0,
+  "second_addr": 15728640,
   "tags_addr": 256,
   "page_size": 4096,
   "name": "",
-  "cmdline": "console=ttyMSM0,115200n8 earlycon=msm_geni_serial,0xA84000 androidboot.hardware=qcom androidboot.console=ttyMSM0 androidboot.usbcontroller=a600000.dwc3 ehci-hcd.park=3 lpm_levels.sleep_disabled=1 msm_rtb.filter=0x237 service_locator.enable=1 swiotlb=2048 loop.max_part=7 androidboot.configfs=true androidboot.boot_devices=soc/1d84000.ufshc cgroup_disable=pressure androidboot.super_partition=system"
+  "cmdline": "console=ttyMSM0,115200n8 earlycon=msm_geni_serial,0xA84000 androidboot.hardware=qcom androidboot.console=ttyMSM0 video=vfb:640x400,bpp=32,memsize=3072000 msm_rtb.filter=0x237 ehci-hcd.park=3 lpm_levels.sleep_disabled=1 service_locator.enable=1 swiotlb=2048 androidboot.configfs=true loop.max_part=7 androidboot.usbcontroller=a600000.dwc3 buildvariant=user androidboot.verifiedbootstate=green androidboot.selinux=permissive"
 }
