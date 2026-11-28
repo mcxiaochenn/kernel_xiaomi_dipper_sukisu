@@ -157,12 +157,14 @@ jobs:
           echo "flags=O=out ARCH=arm64 CROSS_COMPILE=aarch64-linux-android-" | tee -a "$GITHUB_ENV"
 
       - name: Make defconfig
-        run: make $flags CC="ccache aarch64-linux-android-gcc" merged_defconfig
+        # HOSTCC 加 -fcommon：runner 自带 gcc 13 默认 -fno-common，老内核 dtc 的
+        # yylloc 双定义会链接失败（GCC 10+ 经典问题）；目标侧 gcc 4.9 不受影响
+        run: make $flags HOSTCC="gcc -fcommon" CC="ccache aarch64-linux-android-gcc" merged_defconfig
 
       - name: Make
         run: |
           start_ts=$(date +%s)
-          make $flags CC="ccache aarch64-linux-android-gcc" -j"$(nproc --all)"
+          make $flags HOSTCC="gcc -fcommon" CC="ccache aarch64-linux-android-gcc" -j"$(nproc --all)"
           end_ts=$(date +%s)
           echo "build_seconds=$((end_ts - start_ts))" | tee -a "$GITHUB_ENV"
 
